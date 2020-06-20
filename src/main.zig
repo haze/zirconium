@@ -4,7 +4,13 @@ const net = @import("network");
 const io = std.io;
 pub const Command = @import("command.zig").Command;
 
-const io_mode = .evented;
+pub fn init() !void {
+    try net.init();
+}
+
+pub fn deinit() void {
+    net.deinit();
+}
 
 pub const Client = struct {
     const InitOptions = struct {
@@ -168,8 +174,8 @@ test "decls" {
 }
 
 test "client" {
-    _ = try std.os.windows.WSAStartup(2, 2);
-    defer std.os.windows.WSACleanup() catch @panic("Error during cleanup");
+    try init();
+    defer deinit();
 
     std.debug.warn("\n{}\n", .{std.io.is_async});
     var client = try Client.initHost(std.testing.allocator, "irc.rizon.io", 6667, .{

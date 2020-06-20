@@ -4,15 +4,15 @@ const irc = @import("irc");
 pub const io_mode = .evented;
 
 pub fn main() anyerror!void {
-    _ = try std.os.windows.WSAStartup(2, 2);
-    defer std.os.windows.WSACleanup() catch @panic("Error during cleanup");
+    try irc.init();
+    defer irc.deinit();
 
     std.debug.warn("\n{}\n", .{std.io.is_async});
     var client = try irc.Client.initHost(std.testing.allocator, "irc.rizon.io", 6667, .{
         .user = "zirconium",
         .real_name = "zirconium v0.1",
         .nick = "zirc_user",
-        .stdin_is_client = true,
+        .stdin_is_client = false,
     });
     defer client.deinit();
     std.debug.warn("\n", .{});
