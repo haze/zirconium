@@ -1,4 +1,6 @@
-const Builder = @import("std").build.Builder;
+const std = @import("std");
+const Builder = std.build.Builder;
+const Pkg = std.build.Pkg;
 
 pub fn build(b: *Builder) void {
     // Standard target options allows the person running `zig build` to choose
@@ -12,7 +14,7 @@ pub fn build(b: *Builder) void {
     const mode = b.standardReleaseOptions();
 
     const exe = b.addExecutable("bruh", "src/main.zig");
-    exe.addPackagePath("irc", "../../src/main.zig");
+    exe.addPackage(.{ .name = "irc", .path = "../../src/main.zig", .dependencies = &[_]Pkg{.{ .name = "network", .path = "../../zig-network/network.zig" }} });
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.install();

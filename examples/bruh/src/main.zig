@@ -4,6 +4,9 @@ const irc = @import("irc");
 pub const io_mode = .evented;
 
 pub fn main() anyerror!void {
+    _ = try std.os.windows.WSAStartup(2, 2);
+    defer std.os.windows.WSACleanup() catch @panic("Error during cleanup");
+
     std.debug.warn("\n{}\n", .{std.io.is_async});
     var client = try irc.Client.initHost(std.testing.allocator, "irc.rizon.io", 6667, .{
         .user = "zirconium",

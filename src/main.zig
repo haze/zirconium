@@ -1,6 +1,6 @@
 const std = @import("std");
 const mem = std.mem;
-const net = std.net;
+const net = @import("network");
 const io = std.io;
 pub const Command = @import("command.zig").Command;
 
@@ -16,13 +16,13 @@ pub const Client = struct {
     };
 
     allocator: *mem.Allocator,
-    server: net.Address,
+    server: net.EndPoint,
     options: InitOptions,
 
-    connected_reader: ?std.io.Reader(std.fs.File, std.os.ReadError, std.fs.File.read),
-    connected_writer: ?std.io.Writer(std.fs.File, std.os.WriteError, std.fs.File.write),
+    connected_reader: ?std.io.Reader(net.Socket, std.os.RecvFromError, net.Socket.receive),
+    connected_writer: ?std.io.Writer(net.Socket, net.Socket.Error, net.Socket.send),
 
-    pub fn initAddress(allocator: *mem.Allocator, server: net.Address, options: InitOptions) Client {
+    pub fn initEndpoint(allocator: *mem.Allocator, server: net.EndPoint, options: InitOptions) Client {
         return Client{
             .allocator = allocator,
             .server = server,
@@ -34,11 +34,11 @@ pub const Client = struct {
     }
 
     pub fn initHost(allocator: *mem.Allocator, server: []const u8, port: u16, options: InitOptions) !Client {
-        const list = try net.getAddressList(allocator, server, port);
+        const list = try net.getEndpointList(allocator, server, port);
         defer list.deinit();
 
-        if (list.addrs.len == 0) return error.UnknownHostName;
-        return Client.initAddress(allocator, list.addrs[0], options);
+        if (list.endpoints.len == 0) return error.UnknownHostName;
+        return Client.initEndpoint(allocator, list.endpoints[0], options);
     }
 
     fn stdinput(self: *Client) void {
@@ -66,9 +66,11 @@ pub const Client = struct {
 
     pub fn connect(self: *Client) !void {
         // open connection
-        var socket: std.fs.File = try net.tcpConnectToAddress(self.server);
-        self.connected_reader = socket.reader();
-        self.connected_writer = socket.writer();
+        var socket = try net.Socket.create(@as(net.AddressFamily, self.server.address), .tcp);
+        try socket.connect(self.server);
+
+        self.connected_reader = socket.inStream();
+        self.connected_writer = socket.outStream();
         if (std.io.is_async and self.options.stdin_is_client) {
             _ = async self.stdinput();
         }
@@ -166,8 +168,10 @@ test "decls" {
 }
 
 test "client" {
+    _ = try std.os.windows.WSAStartup(2, 2);
+    defer std.os.windows.WSACleanup() catch @panic("Error during cleanup");
+
     std.debug.warn("\n{}\n", .{std.io.is_async});
-    std.testing.expect(false);
     var client = try Client.initHost(std.testing.allocator, "irc.rizon.io", 6667, .{
         .user = "zirconium",
         .real_name = "zirconium v0.1",
